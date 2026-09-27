@@ -23,21 +23,25 @@
       padding: 32px;
       width: 100%;
       max-width: 520px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.45);
     }
     h1 {
       text-align: center;
-      margin-bottom: 24px;
-      font-size: 1.6rem;
+      margin-bottom: 8px;
+      font-size: 1.55rem;
       color: #fff;
     }
-    .field {
-      margin-bottom: 16px;
+    .subtitle {
+      text-align: center;
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 28px;
     }
+    .field { margin-bottom: 16px; }
     label {
       display: block;
       margin-bottom: 6px;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       color: #aaa;
     }
     input {
@@ -49,14 +53,18 @@
       color: #fff;
       font-size: 1rem;
       outline: none;
+      transition: 0.2s;
     }
-    input:focus {
-      border-color: #6c5ce7;
+    input:focus { border-color: #6c5ce7; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 100px;
+      gap: 12px;
     }
     .buttons {
       display: flex;
       gap: 12px;
-      margin-top: 20px;
+      margin-top: 22px;
     }
     button {
       flex: 1;
@@ -68,55 +76,52 @@
       cursor: pointer;
       transition: 0.2s;
     }
-    .start {
-      background: #6c5ce7;
-      color: white;
-    }
+    .start { background: #6c5ce7; color: white; }
     .start:hover { background: #5a4bd1; }
-    .stop {
-      background: #ff4757;
-      color: white;
-    }
+    .stop { background: #ff4757; color: white; }
     .stop:hover { background: #e84118; }
     .status {
       text-align: center;
-      margin: 18px 0;
+      margin: 18px 0 6px;
       font-size: 0.95rem;
     }
     .status span {
-      padding: 4px 12px;
+      padding: 5px 14px;
       border-radius: 20px;
       font-weight: 600;
+      font-size: 0.9rem;
     }
     .online { background: #2ed573; color: #000; }
     .offline { background: #57606f; color: #fff; }
     .logs {
-      margin-top: 24px;
+      margin-top: 22px;
       background: #121218;
       border-radius: 10px;
       padding: 14px;
-      height: 220px;
+      height: 240px;
       overflow-y: auto;
-      font-family: monospace;
-      font-size: 0.85rem;
-      line-height: 1.5;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      line-height: 1.55;
       border: 1px solid #2a2a35;
     }
-    .log-line { margin-bottom: 4px; color: #b0b0b0; }
+    .log-line { margin-bottom: 3px; color: #b8b8b8; }
+    .log-line.error { color: #ff6b6b; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Minehut AFK Panel</h1>
+    <div class="subtitle">Бот будет держать сервер онлайн</div>
 
     <div class="field">
       <label>Microsoft Email</label>
-      <input type="email" id="email" placeholder="example@outlook.com">
+      <input type="email" id="email" placeholder="example@outlook.com" autocomplete="off">
     </div>
 
     <div class="field">
-      <label>Название сервера (Minehut)</label>
-      <input type="text" id="serverName" placeholder="MyServer">
+      <label>Название сервера на Minehut</label>
+      <input type="text" id="serverName" placeholder="MyCoolServer" autocomplete="off">
     </div>
 
     <div class="field">
@@ -134,8 +139,8 @@
     </div>
 
     <div class="buttons">
-      <button class="start" onclick="start()">Запустить</button>
-      <button class="stop" onclick="stop()">Остановить</button>
+      <button class="start" onclick="startBot()">Запустить</button>
+      <button class="stop" onclick="stopBot()">Остановить</button>
     </div>
 
     <div class="logs" id="logs"></div>
@@ -149,21 +154,20 @@
     socket.on('log', (msg) => {
       const div = document.createElement('div')
       div.className = 'log-line'
+      if (msg.toLowerCase().includes('ошибка') || msg.toLowerCase().includes('кикнули')) {
+        div.classList.add('error')
+      }
       div.textContent = msg
       logsEl.appendChild(div)
       logsEl.scrollTop = logsEl.scrollHeight
     })
 
     socket.on('status', (running) => {
-      updateStatus(running)
-    })
-
-    function updateStatus(running) {
       statusEl.textContent = running ? 'Онлайн' : 'Оффлайн'
       statusEl.className = running ? 'online' : 'offline'
-    }
+    })
 
-    function start() {
+    function startBot() {
       const config = {
         email: document.getElementById('email').value.trim(),
         serverName: document.getElementById('serverName').value.trim(),
@@ -176,13 +180,13 @@
         return
       }
 
+      // Очищаем старые логи
+      logsEl.innerHTML = ''
       socket.emit('start', config)
-      updateStatus(true)
     }
 
-    function stop() {
+    function stopBot() {
       socket.emit('stop')
-      updateStatus(false)
     }
   </script>
 </body>
