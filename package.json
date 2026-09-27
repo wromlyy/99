@@ -1,0 +1,13 @@
+{
+  "name": "minehut-afk-panel",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "mineflayer": "^4.20.1",
+    "socket.io": "^4.7.5"
+  }
+}
