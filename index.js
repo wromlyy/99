@@ -13,77 +13,130 @@ app.use(express.static(path.join(__dirname, 'public')))
 
 let bot = null
 let isRunning = false
+let currentConfig = null
+let afkInterval = null
 
 function log(msg) {
-  const time = new Date().toLocaleTimeString()
+  const time = new Date().toLocaleTimeString('ru-RU')
   const text = `[${time}] ${msg}`
   console.log(text)
   io.emit('log', text)
 }
 
 function startBot(config) {
-  if (isRunning) return log('Бот уже запущен')
+  if (isRunning) {
+    log('Бот уже запущен')
+    return
+  }
 
+  currentConfig = config
   isRunning = true
-  log('Запуск бота...')
+  log(`Запуск бота...`)
+  log(`Хост: \( {config.host}: \){config.port}`)
+  log(`Аккаунт: ${config.email}`)
+  log(`Сервер: ${config.serverName}`)
 
   bot = mineflayer.createBot({
-    host: config.host || 'mc.minehut.com',
-    port: parseInt(config.port) || 25565,
+    host: config.host,
+    port: parseInt(config.port),
     username: config.email,
     auth: 'microsoft',
-    version: false
+    version: false,
+    hideErrors: false
+  })
+
+  bot.once('login', () => {
+    log('Успешный вход в аккаунт Microsoft')
   })
 
   bot.once('spawn', () => {
-    log('Бот зашёл на сервер')
-    setTimeout(() => {
-      bot.chat(`/join ${config.serverName}`)
-      log(`Отправлена команда /join ${config.serverName}`)
-    }, 5000)
+    log('Бот появился в мире')
+
+    // Если это лобби Minehut — заходим на свой сервер
+    if (config.host.includes('minehut.com') || config.host.includes('minehut.gg')) {
+      setTimeout(() => {
+        bot.chat(`/join ${config.serverName}`)
+        log(`Отправлена команда: /join ${config.serverName}`)
+      }, 4000)
+    }
   })
 
   // Анти-AFK
-  const afk = setInterval(() => {
-    if (bot?.entity) {
+  afkInterval = setInterval(() => {
+    if (bot && bot.entity) {
       bot.setControlState('jump', true)
-      setTimeout(() => bot.setControlState('jump', false), 300)
+      setTimeout(() => {
+        if (bot) bot.setControlState('jump', false)
+      }, 400)
     }
-  }, 40000)
+  }, 35000)
+
+  bot.on('messagestr', (msg) => {
+    // Показываем важные сообщения в логах
+    if (msg.toLowerCase().includes('join') || msg.toLowerCase().includes('server')) {
+      log(`Сообщение сервера: ${msg}`)
+    }
+  })
 
   bot.on('kicked', (reason) => {
-    log('Кикнули: ' + reason.toString())
+    log(`Кикнули: ${reason}`)
   })
 
   bot.on('error', (err) => {
-    log('Ошибка: ' + err.message)
+    log(`Ошибка: ${err.message}`)
   })
 
-  bot.on('end', () => {
-    clearInterval(afk)
-    isRunning = false
-    log('Отключился. Переподключение через 15 сек...')
+  bot.on('end', (reason) => {
+    log(`Отключился (${reason || 'неизвестно'})`)
+    cleanup()
+    
+    // Авто-реконнект
+    log('Переподключение через 18 секунд...')
     setTimeout(() => {
-      if (!isRunning) startBot(config) // авто-реконнект
-    }, 15000)
+      if (currentConfig) {
+        startBot(currentConfig)
+      }
+    }, 18000)
   })
+}
+
+function cleanup() {
+  if (afkInterval) {
+    clearInterval(afkInterval)
+    afkInterval = null
+  }
+  bot = null
+  isRunning = false
+  io.emit('status', false)
 }
 
 function stopBot() {
   if (bot) {
-    bot.quit()
-    bot = null
+    try {
+      bot.quit('Остановлен через панель')
+    } catch (e) {}
   }
-  isRunning = false
-  log('Бот остановлен')
+  currentConfig = null
+  cleanup()
+  log('Бот полностью остановлен')
 }
 
-// Socket.io
+// Socket
 io.on('connection', (socket) => {
   socket.emit('status', isRunning)
 
   socket.on('start', (config) => {
-    startBot(config)
+    if (!config.email || !config.serverName) {
+      log('Ошибка: не указан email или название сервера')
+      return
+    }
+    startBot({
+      email: config.email.trim(),
+      serverName: config.serverName.trim(),
+      host: (config.host || 'mc.minehut.com').trim(),
+      port: config.port || '25565'
+    })
+    io.emit('status', true)
   })
 
   socket.on('stop', () => {
@@ -91,12 +144,7 @@ io.on('connection', (socket) => {
   })
 })
 
-// Статус
-app.get('/status', (req, res) => {
-  res.json({ running: isRunning })
-})
-
 const PORT = process.env.PORT || 3000
 server.listen(PORT, () => {
-  console.log(`Панель запущена на порту ${PORT}`)
+  console.log(`Панель запущена: http://localhost:${PORT}`)
 })
