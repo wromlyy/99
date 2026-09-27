@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minehut AFK Panel</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f0f13;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      background: #1a1a22;
+      border-radius: 16px;
+      padding: 32px;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 24px;
+      font-size: 1.6rem;
+      color: #fff;
+    }
+    .field {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid #333;
+      background: #121218;
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+    }
+    input:focus {
+      border-color: #6c5ce7;
+    }
+    .buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    button {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .start {
+      background: #6c5ce7;
+      color: white;
+    }
+    .start:hover { background: #5a4bd1; }
+    .stop {
+      background: #ff4757;
+      color: white;
+    }
+    .stop:hover { background: #e84118; }
+    .status {
+      text-align: center;
+      margin: 18px 0;
+      font-size: 0.95rem;
+    }
+    .status span {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .online { background: #2ed573; color: #000; }
+    .offline { background: #57606f; color: #fff; }
+    .logs {
+      margin-top: 24px;
+      background: #121218;
+      border-radius: 10px;
+      padding: 14px;
+      height: 220px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      border: 1px solid #2a2a35;
+    }
+    .log-line { margin-bottom: 4px; color: #b0b0b0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Minehut AFK Panel</h1>
+
+    <div class="field">
+      <label>Microsoft Email</label>
+      <input type="email" id="email" placeholder="example@outlook.com">
+    </div>
+
+    <div class="field">
+      <label>Название сервера (Minehut)</label>
+      <input type="text" id="serverName" placeholder="MyServer">
+    </div>
+
+    <div class="field">
+      <label>Хост</label>
+      <input type="text" id="host" value="mc.minehut.com">
+    </div>
+
+    <div class="field">
+      <label>Порт</label>
+      <input type="number" id="port" value="25565">
+    </div>
+
+    <div class="status">
+      Статус: <span id="status" class="offline">Оффлайн</span>
+    </div>
+
+    <div class="buttons">
+      <button class="start" onclick="start()">Запустить</button>
+      <button class="stop" onclick="stop()">Остановить</button>
+    </div>
+
+    <div class="logs" id="logs"></div>
+  </div>
+
+  <script>
+    const socket = io()
+    const logsEl = document.getElementById('logs')
+    const statusEl = document.getElementById('status')
+
+    socket.on('log', (msg) => {
+      const div = document.createElement('div')
+      div.className = 'log-line'
+      div.textContent = msg
+      logsEl.appendChild(div)
+      logsEl.scrollTop = logsEl.scrollHeight
+    })
+
+    socket.on('status', (running) => {
+      updateStatus(running)
+    })
+
+    function updateStatus(running) {
+      statusEl.textContent = running ? 'Онлайн' : 'Оффлайн'
+      statusEl.className = running ? 'online' : 'offline'
+    }
+
+    function start() {
+      const config = {
+        email: document.getElementById('email').value.trim(),
+        serverName: document.getElementById('serverName').value.trim(),
+        host: document.getElementById('host').value.trim(),
+        port: document.getElementById('port').value.trim()
+      }
+
+      if (!config.email || !config.serverName) {
+        alert('Заполни Email и Название сервера')
+        return
+      }
+
+      socket.emit('start', config)
+      updateStatus(true)
+    }
+
+    function stop() {
+      socket.emit('stop')
+      updateStatus(false)
+    }
+  </script>
+</body>
+</html>
